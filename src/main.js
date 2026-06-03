@@ -11,7 +11,7 @@ import { DebugGUI } from './debug/DebugGUI.js';
 import { CoordinatePicker } from './debug/CoordinatePicker.js';
 import { PathVisualizer } from './debug/PathVisualizer.js';
 
-const isDebug = true;
+const isDebug = import.meta.env.DEV; // Auto: ON in dev, OFF in `vite build`
 
 // Engine (hidden during intro)
 const engine = new Engine({
