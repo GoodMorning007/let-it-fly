@@ -36,10 +36,25 @@ export class Typewriter {
       ],
     };
 
+    // Shared AudioContext — created once, reused for every click
+    this._audioCtx = null;
+
     // Preload sound buffers
     this._buffers = [];
     this._loaded = false;
     this._loadSounds();
+  }
+
+  /** Lazily create the shared AudioContext (browsers may require user gesture) */
+  _getAudioCtx() {
+    if (!this._audioCtx) {
+      this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // Resume if suspended (browser may suspend until user gesture)
+    if (this._audioCtx.state === 'suspended') {
+      this._audioCtx.resume();
+    }
+    return this._audioCtx;
   }
 
   /**
@@ -105,15 +120,17 @@ export class Typewriter {
   }
 
   /**
-   * Play a random typing click sound
+   * Play a random typing click sound — uses shared AudioContext for zero latency
    * @private
    */
   _playClick() {
     if (!this._cfg.soundEnabled || !this._buffers.length) return;
 
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = this._getAudioCtx();
       const buf = this._buffers[Math.floor(Math.random() * this._buffers.length)];
+      if (!buf) return;
+
       const src = ctx.createBufferSource();
       src.buffer = buf;
 
@@ -121,7 +138,7 @@ export class Typewriter {
       gain.gain.value = this._cfg.soundVolume;
       src.connect(gain).connect(ctx.destination);
       src.start();
-      src.onended = () => ctx.close();
+      // NOTE: do NOT close ctx — it's shared across all clicks
     } catch {
       // Silently ignore audio errors
     }

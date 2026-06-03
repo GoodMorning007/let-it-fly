@@ -1,19 +1,21 @@
 /**
  * IntroStage — Cinematic video landing experience
  *
- * 1. Fullscreen intro video plays (~4s)
+ * 1. Fullscreen intro video plays
  * 2. Freeze last frame + dark overlay
  * 3. Typewriter: "Welcome to the Fantasy World." → fade out
  * 4. Typewriter: "Ready for the Trip?" → stays
  * 5. Buttons: "YES!!!" | "TAKE OFF"
- * 6. Click → transition to Happy Birthday
+ * 6. Click → transition to loading
+ *
+ * QA mode: auto-clicks YES after 5 seconds.
  */
 
+import { getEnvironmentMode, ENV } from '../config/environment.js';
 import { Typewriter } from '../ui/Typewriter.js';
 
 // ====================== TUNABLE ======================
 
-/** Typewriter config */
 const TYPEWRITER_CONFIG = {
   typingSpeed: 100,
   soundEnabled: true,
@@ -25,7 +27,6 @@ const TYPEWRITER_CONFIG = {
   ],
 };
 
-/** Typewriter sentences */
 const SENTENCE_1 = {
   text: 'Welcome to the Fantasy World.',
   cls: 'small',
@@ -41,12 +42,15 @@ const SENTENCE_2 = {
   fadeOut: false,
 };
 
+const QA_AUTO_CLICK_DELAY = 5000; // ms before auto-clicking YES in QA mode
+
 // ======================================================
 
 export class IntroStage {
   constructor(engine, onConfirm) {
     this.engine = engine;
     this.onConfirm = onConfirm;
+    this._env = getEnvironmentMode();
 
     // DOM
     this._video = document.getElementById('intro-video');
@@ -63,22 +67,23 @@ export class IntroStage {
     this._bgm = new Audio('/intro/intro_bgm.mp3');
     this._bgm.loop = true;
     this._bgm.volume = 0.4;
+
+    this._qaTimer = null;
+    this._transitioned = false;
   }
 
-  /**
-   * Start the cinematic intro sequence
-   */
   start() {
-    // Browsers block autoplay audio — play on first user gesture
-    const playBGM = () => {
-      if (this._bgm) this._bgm.play().catch(() => {});
-      document.removeEventListener('click', playBGM);
-      document.removeEventListener('keydown', playBGM);
-    };
-    document.addEventListener('click', playBGM);
-    document.addEventListener('keydown', playBGM);
+    // Show video (hidden by default via CSS visibility: hidden to prevent flash)
+    if (this._video) this._video.style.visibility = 'visible';
 
-    // Init typewriter
+    // BGM — try immediately (usually blocked), then wait for user gesture
+    this._bgm.play().catch(() => {});
+    const onGesture = () => {
+      if (this._bgm && this._bgm.paused) this._bgm.play().catch(() => {});
+    };
+    document.addEventListener('click', onGesture, { once: true });
+    document.addEventListener('keydown', onGesture, { once: true });
+
     this._typewriter = new Typewriter(this._textLine, TYPEWRITER_CONFIG);
 
     if (!this._video) {
@@ -88,36 +93,36 @@ export class IntroStage {
 
     this._video.addEventListener('ended', () => this._onVideoEnd(), { once: true });
 
-    // Fallback
+    // Fallback — if video never loads
     setTimeout(() => {
       if (!this._video.ended && this._video.readyState === 0) {
         this._skipToEnd();
       }
     }, 8000);
 
-    this._video.play().catch(() => this._skipToEnd());
+    // visibility:hidden prevented autoplay & resource fetch — force load now
+    this._video.load();
+
+    // Play once the browser has buffered enough data
+    if (this._video.readyState >= 3) {
+      // Already buffered (rare with visibility:hidden, but handle it)
+      this._video.play().catch(() => this._skipToEnd());
+    } else {
+      this._video.addEventListener('canplay', () => {
+        this._video.play().catch(() => this._skipToEnd());
+      }, { once: true });
+    }
   }
 
-  /**
-   * Video ended → freeze frame, dark overlay, start typewriter
-   * @private
-   */
   _onVideoEnd() {
     this._video.pause();
-
     if (this._overlay) this._overlay.classList.add('active');
-
     this._runTyping();
   }
 
-  /**
-   * Typewriter sequence
-   * @private
-   */
   async _runTyping() {
     if (!this._typewriter) return;
 
-    // Sentence 1
     await this._typewriter.type(SENTENCE_1.text, {
       cls: SENTENCE_1.cls,
       typingSpeed: SENTENCE_1.typingSpeed,
@@ -125,21 +130,15 @@ export class IntroStage {
       waitAfter: SENTENCE_1.waitAfter,
     });
 
-    // Sentence 2
     await this._typewriter.type(SENTENCE_2.text, {
       cls: SENTENCE_2.cls,
       typingSpeed: SENTENCE_2.typingSpeed,
       fadeOut: SENTENCE_2.fadeOut,
     });
 
-    // Show buttons
     this._showButtons();
   }
 
-  /**
-   * Fade in buttons
-   * @private
-   */
   _showButtons() {
     if (!this._buttons) return;
     this._buttons.classList.add('visible');
@@ -147,18 +146,31 @@ export class IntroStage {
     const yesBtn = document.getElementById('btn-yes');
     const takeoffBtn = document.getElementById('btn-takeoff');
 
-    const confirm = () => this._transition();
+    const confirm = () => {
+      // Button click = guaranteed user gesture → try BGM again
+      if (this._bgm && this._bgm.paused) this._bgm.play().catch(() => {});
+      this._transition();
+    };
 
     if (yesBtn) yesBtn.addEventListener('click', confirm);
     if (takeoffBtn) takeoffBtn.addEventListener('click', confirm);
+
+    // QA mode: auto-click YES after delay
+    if (this._env === ENV.QA) {
+      this._qaTimer = setTimeout(() => {
+        console.log('%c[QA] %cAuto-clicking YES',
+          'color:rgba(255,255,255,0.5);',
+          'color:#D4A574;');
+        confirm();
+      }, QA_AUTO_CLICK_DELAY);
+    }
   }
 
-  /**
-   * Transition: hide intro, reveal 3D canvas, load Happy Birthday
-   * @private
-   */
   _transition() {
-    // Stop intro BGM
+    if (this._transitioned) return;
+    this._transitioned = true;
+    if (this._qaTimer) clearTimeout(this._qaTimer);
+
     if (this._bgm) { this._bgm.pause(); this._bgm = null; }
 
     if (this._video) this._video.style.display = 'none';
@@ -171,10 +183,6 @@ export class IntroStage {
     if (this.onConfirm) this.onConfirm();
   }
 
-  /**
-   * Skip video → go directly to typewriter
-   * @private
-   */
   _skipToEnd() {
     if (this._video) this._video.style.display = 'none';
     this._onVideoEnd();
