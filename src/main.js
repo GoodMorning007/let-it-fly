@@ -22,23 +22,27 @@ const engine = new Engine({
 // Stage manager (happy_birthday flow)
 const stageManager = new StageManager({ engine, debug: isDebug });
 
-// Debug tools
-const debugGUI = new DebugGUI({ engine, stageManager });
-debugGUI.init();
+// Debug tools — only in development
+let debugGUI, coordinatePicker, pathVisualizer;
 
-const coordinatePicker = new CoordinatePicker({
-  camera: engine.camera,
-  scene: engine.scene,
-  domElement: engine.renderer.domElement,
-});
-coordinatePicker.activate();
+if (isDebug) {
+  debugGUI = new DebugGUI({ engine, stageManager });
+  debugGUI.init();
 
-const pathVisualizer = new PathVisualizer({ scene: engine.scene, stageManager });
-pathVisualizer.build();
+  coordinatePicker = new CoordinatePicker({
+    camera: engine.camera,
+    scene: engine.scene,
+    domElement: engine.renderer.domElement,
+  });
+  coordinatePicker.activate();
 
-window.__coordinatePicker = coordinatePicker;
-window.__pathVisualizer = pathVisualizer;
-window.__debugGUI = debugGUI;
+  pathVisualizer = new PathVisualizer({ scene: engine.scene, stageManager });
+  pathVisualizer.build();
+
+  window.__coordinatePicker = coordinatePicker;
+  window.__pathVisualizer = pathVisualizer;
+  window.__debugGUI = debugGUI;
+}
 
 // Start render loop
 engine.start();

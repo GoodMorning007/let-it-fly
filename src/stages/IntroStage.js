@@ -69,8 +69,14 @@ export class IntroStage {
    * Start the cinematic intro sequence
    */
   start() {
-    // Play BGM
-    this._bgm.play().catch(() => {});
+    // Browsers block autoplay audio — play on first user gesture
+    const playBGM = () => {
+      if (this._bgm) this._bgm.play().catch(() => {});
+      document.removeEventListener('click', playBGM);
+      document.removeEventListener('keydown', playBGM);
+    };
+    document.addEventListener('click', playBGM);
+    document.addEventListener('keydown', playBGM);
 
     // Init typewriter
     this._typewriter = new Typewriter(this._textLine, TYPEWRITER_CONFIG);
