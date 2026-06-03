@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Let It Fly</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- Intro video -->
+  <video id="intro-video" src="/intro/intro.mp4" autoplay muted playsinline></video>
+
+  <!-- Dark overlay (appears after video ends) -->
+  <div id="intro-overlay"></div>
+
+  <!-- Typewriter text -->
+  <div id="intro-text-container">
+    <p id="intro-text-line"></p>
+  </div>
+
+  <!-- Buttons -->
+  <div id="intro-buttons">
+    <button id="btn-yes">YES!!!</button>
+    <button id="btn-takeoff">TAKE OFF</button>
+  </div>
+
+  <!-- Three.js canvas (hidden during intro) -->
+  <div id="canvas-container"></div>
+
+  <!-- Post-processing -->
+  <div id="vignette"></div>
+  <div id="film-grain"></div>
+
+  <!-- Loading screen -->
+  <div id="loading-screen" class="hidden">
+    <div id="loading-content">
+      <p id="loading-text">PREPARING</p>
+      <div id="progress-track">
+        <div id="progress-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scroll indicator -->
+  <div id="scroll-indicator">
+    <span>SCROLL TO FLY</span>
+    <div class="indicator-line"></div>
+  </div>
+
+  <!-- Landing prompt -->
+  <div id="landing-prompt">
+    <span>EXPLORE</span>
+    <span class="sub">Click and drag to look around</span>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
